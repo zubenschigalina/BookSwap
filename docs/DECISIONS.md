@@ -104,6 +104,14 @@ This project is built from two source documents (on the Desktop):
 ## Known external setup required (blocks running, not building)
 
 - A **Firebase project** + `app/google-services.json` (a placeholder is committed so the project compiles).
+- **Security rules + indexes are in the repo** (`firestore.rules`, `storage.rules`,
+  `firestore.indexes.json`, wired via `firebase.json`). Deploy with
+  `firebase deploy --only firestore,storage`. Two rules are deliberately permissive so the
+  client-side proposal-accept state machine works without a Cloud Function: any signed-in
+  user may flip *only* a book's or proposal's `status`. A Cloud Function would let us
+  tighten those. `books(ownerId, createdAt)` is the one composite index genuinely required
+  (My Library); the discovery index is defined explicitly but equality-only queries are
+  usually auto-served.
 - **Google Sign-In**: a Web client ID (from Firebase console) placed in `res/values/secrets.xml`.
 - **Firestore composite index** `books(ownerCity, status)` for discovery (see Sprint 2 notes).
 - Later sprints: Maps SDK key (location pins), FCM for favorite/proposal push (Sprint 3).

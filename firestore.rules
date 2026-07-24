@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// BookSwap Firestore security rules.
+//
+// MVP posture: any *signed-in* user can read the catalog and profiles (discovery,
+// interested-user views need this); writes are scoped to the owning user, with two
+// deliberate exceptions marked below so the client-side proposal-accept state machine
+// (docs/DECISIONS.md #3) can run without a Cloud Function. Those exceptions only permit
+// flipping a `status`/`read` flag — never rewriting a document you don't own. Moving the
+// state machine into a Cloud Function later would let us tighten them further.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    function onlyStatusChanged() { return changedKeys().hasOnly(['status']); }
+
+    // Profiles: readable by any signed-in user; writable only by their owner.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && uid() == userId;
+      allow delete: if false;
+
+      // City-change audit trail (append-only, owner-private).
+      match /city_change_history/{entryId} {
+        allow read, create: if isSignedIn() && uid() == userId;
+        allow update, delete: if false;
+      }
+    }
+
+    // Books: anyone signed in can browse; only the owner can create/edit/delete.
+    // Exception: any signed-in user may change ONLY `status`, so accepting a proposal
+    // can reserve the proposer's offered books (which the accepter doesn't own).
+    match /books/{bookId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerId == uid();
+      allow update: if isSignedIn() && (resource.data.ownerId == uid() || onlyStatusChanged());
+      allow delete: if isSignedIn() && resource.data.ownerId == uid();
+    }
+
+    // Favorites: fully private to the favoriting user. The `resource == null` clause
+    // lets addFavorite's pre-write existence check read a not-yet-created doc.
+    match /favorites/{favId} {
+      allow read: if isSignedIn() && (resource == null || resource.data.userId == uid());
+      allow create: if isSignedIn() && request.resource.data.userId == uid();
+      allow delete: if isSignedIn() && resource.data.userId == uid();
+      allow update: if false;
+    }
+
+    // Interest alerts: created by the interested user, read by the book owner, who may
+    // only toggle the `read` flag.
+    match /interest_alerts/{alertId} {
+      allow read: if isSignedIn() && resource.data.recipientId == uid();
+      allow create: if isSignedIn() && request.resource.data.actorId == uid();
+      allow update: if isSignedIn() && resource.data.recipientId == uid()
+                    && changedKeys().hasOnly(['read']);
+      allow delete: if false;
+    }
+
+    // Proposals: readable by any signed-in user because accept() queries competing
+    // proposals it doesn't own. Created by the proposer; the recipient decides, and any
+    // signed-in user may flip ONLY `status` so competing proposals can auto-expire.
+    match /proposals/{proposalId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.proposerId == uid();
+      allow update: if isSignedIn() && (resource.data.recipientId == uid() || onlyStatusChanged());
+      allow delete: if false;
+    }
+  }
+}
