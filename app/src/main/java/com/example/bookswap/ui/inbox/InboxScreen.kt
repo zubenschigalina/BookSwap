@@ -46,8 +46,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.bookswap.R
 import com.example.bookswap.data.model.InterestAlert
+import com.example.bookswap.data.model.MeetingStatus
 import com.example.bookswap.data.model.Proposal
 import com.example.bookswap.data.model.ProposalStatus
+import com.example.bookswap.ui.exchange.formatMeetingDateTime
 
 /**
  * Inbox (Epics 6 & 7): a "Proposals" queue with sorting + accept/reject, and an
@@ -57,6 +59,7 @@ import com.example.bookswap.data.model.ProposalStatus
 @Composable
 fun InboxScreen(
     onViewUser: (userId: String, name: String) -> Unit,
+    onOpenExchange: (proposalId: String) -> Unit,
     viewModel: InboxViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,11 +77,7 @@ fun InboxScreen(
                         onClick = { viewModel.setTab(tab) },
                         shape = SegmentedButtonDefaults.itemShape(index, InboxTab.entries.size),
                     ) {
-                        Text(
-                            stringResource(
-                                if (tab == InboxTab.PROPOSALS) R.string.inbox_proposals else R.string.inbox_interest,
-                            ),
-                        )
+                        Text(stringResource(tab.labelRes()))
                     }
                 }
             }
@@ -94,6 +93,11 @@ fun InboxScreen(
                     onSortChange = viewModel::setSort,
                     onAccept = viewModel::accept,
                     onReject = viewModel::reject,
+                )
+
+                uiState.tab == InboxTab.EXCHANGES -> ExchangesTab(
+                    exchanges = uiState.exchanges,
+                    onOpen = onOpenExchange,
                 )
 
                 else -> InterestTab(
@@ -206,6 +210,76 @@ private fun StatusPill(status: String) {
             .padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Text(ProposalStatus.labelOf(status), style = MaterialTheme.typography.labelSmall, color = color)
+    }
+}
+
+private fun InboxTab.labelRes(): Int = when (this) {
+    InboxTab.PROPOSALS -> R.string.inbox_proposals
+    InboxTab.EXCHANGES -> R.string.inbox_exchanges
+    InboxTab.INTEREST -> R.string.inbox_interest
+}
+
+/**
+ * Accepted exchanges (Epics 8–10), either side of the swap. Each row summarises the
+ * meeting state so the user can see at a glance what needs their attention, and opens the
+ * exchange detail screen.
+ */
+@Composable
+private fun ExchangesTab(exchanges: List<ExchangeRow>, onOpen: (String) -> Unit) {
+    if (exchanges.isEmpty()) {
+        Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+            Text(stringResource(R.string.inbox_no_exchanges), style = MaterialTheme.typography.bodyLarge)
+        }
+        return
+    }
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(exchanges, key = { it.proposal.id }) { row ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.exchange_requested, row.proposal.requestedBookTitle),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+
+                    val meeting = row.meeting
+                    when {
+                        row.proposal.status == ProposalStatus.CANCELLED.name ->
+                            StatusPill(status = ProposalStatus.CANCELLED.name)
+
+                        meeting?.status == MeetingStatus.CANCELLED.name ->
+                            StatusPill(status = ProposalStatus.CANCELLED.name)
+
+                        meeting?.dateTime != null -> {
+                            Text(
+                                meeting.dateTime.formatMeetingDateTime(),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                MeetingStatus.labelOf(meeting.status),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+
+                        else -> Text(
+                            stringResource(R.string.inbox_exchange_unscheduled),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    TextButton(onClick = { onOpen(row.proposal.id) }) {
+                        Text(stringResource(R.string.inbox_open_exchange))
+                    }
+                }
+            }
+        }
     }
 }
 

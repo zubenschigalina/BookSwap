@@ -34,7 +34,9 @@ import com.example.bookswap.ui.auth.ForgotPasswordScreen
 import com.example.bookswap.ui.auth.LoginScreen
 import com.example.bookswap.ui.auth.RegisterScreen
 import com.example.bookswap.ui.auth.VerifyEmailScreen
+import com.example.bookswap.ui.chat.ChatScreen
 import com.example.bookswap.ui.discovery.DiscoveryScreen
+import com.example.bookswap.ui.exchange.ExchangeDetailScreen
 import com.example.bookswap.ui.favorites.FavoritesScreen
 import com.example.bookswap.ui.inbox.InboxScreen
 import com.example.bookswap.ui.inbox.InterestedUserScreen
@@ -61,6 +63,8 @@ private object Routes {
     const val EDIT_PROFILE = "edit_profile"
     const val PROPOSE = "propose" // "$PROPOSE/{bookId}/{ownerId}/{title}"
     const val USER_LIBRARY = "user_library" // "$USER_LIBRARY/{userId}/{name}"
+    const val EXCHANGE = "exchange" // "$EXCHANGE/{proposalId}"
+    const val CHAT = "chat" // "$CHAT/{proposalId}/{name}"
 }
 
 private enum class Tab(val route: String, val labelRes: Int) {
@@ -189,6 +193,9 @@ private fun MainFlow(onSignOut: () -> Unit) {
                     onViewUser = { userId, name ->
                         navController.navigate("${Routes.USER_LIBRARY}/$userId/${Uri.encode(name)}")
                     },
+                    onOpenExchange = { proposalId ->
+                        navController.navigate("${Routes.EXCHANGE}/$proposalId")
+                    },
                 )
             }
 
@@ -227,6 +234,28 @@ private fun MainFlow(onSignOut: () -> Unit) {
                     onDone = { navController.popBackStack() },
                 )
             }
+            composable("${Routes.EXCHANGE}/{proposalId}") { entry ->
+                ExchangeDetailScreen(
+                    proposalId = entry.arguments?.getString("proposalId").orEmpty(),
+                    onBack = { navController.popBackStack() },
+                    onOpenChat = { proposalId, name ->
+                        // A blank name would collapse the path segment and break route
+                        // matching, so send a placeholder the screen falls back on.
+                        val encoded = Uri.encode(name.ifBlank { "-" })
+                        navController.navigate("${Routes.CHAT}/$proposalId/$encoded")
+                    },
+                )
+            }
+            composable("${Routes.CHAT}/{proposalId}/{name}") { entry ->
+                ChatScreen(
+                    proposalId = entry.arguments?.getString("proposalId").orEmpty(),
+                    counterpartName = entry.arguments?.getString("name")
+                        ?.takeUnless { it == "-" }
+                        .orEmpty(),
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
             composable("${Routes.USER_LIBRARY}/{userId}/{name}") { entry ->
                 InterestedUserScreen(
                     userId = entry.arguments?.getString("userId").orEmpty(),

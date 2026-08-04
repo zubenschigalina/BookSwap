@@ -68,6 +68,36 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.proposerId == uid();
       allow update: if isSignedIn() && (resource.data.recipientId == uid() || onlyStatusChanged());
       allow delete: if false;
+
+      // Exchange chat (Epic 9). Unlocked ONLY while the parent proposal is ACCEPTED —
+      // the same gate ChatViewModel applies client-side, enforced here so a cancelled
+      // exchange's thread becomes read-only for real. Living under the proposal is what
+      // makes the get() below possible, and permanently links the transcript to the
+      // exchange record.
+      match /messages/{messageId} {
+        function proposal() {
+          return get(/databases/$(database)/documents/proposals/$(proposalId)).data;
+        }
+        function isParticipant() {
+          return proposal().proposerId == uid() || proposal().recipientId == uid();
+        }
+        // History stays readable after cancellation; only sending is gated on ACCEPTED.
+        allow read: if isSignedIn() && isParticipant();
+        allow create: if isSignedIn() && isParticipant()
+                      && proposal().status == 'ACCEPTED'
+                      && request.resource.data.senderId == uid();
+        allow update, delete: if false;
+      }
+    }
+
+    // Meetings (Epics 8 & 10), one per accepted proposal, keyed by the proposal id.
+    // Both participants may write: either side can propose a change, confirm, or cancel.
+    match /meetings/{meetingId} {
+      allow read: if isSignedIn() && uid() in resource.data.participantIds;
+      allow create: if isSignedIn() && uid() in request.resource.data.participantIds;
+      allow update: if isSignedIn() && uid() in resource.data.participantIds
+                    && request.resource.data.participantIds == resource.data.participantIds;
+      allow delete: if false;
     }
   }
 }

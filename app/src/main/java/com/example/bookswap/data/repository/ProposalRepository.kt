@@ -30,6 +30,19 @@ class ProposalRepository(
     fun observeOutgoing(proposerId: String): Flow<List<Proposal>> =
         observeBy("proposerId", proposerId)
 
+    /** Live single proposal, so an open exchange reacts to being cancelled elsewhere. */
+    fun observeProposal(proposalId: String): Flow<Proposal?> = callbackFlow {
+        val registration = proposals.document(proposalId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(Proposal::class.java))
+            }
+        awaitClose { registration.remove() }
+    }
+
     private fun observeBy(field: String, value: String): Flow<List<Proposal>> = callbackFlow {
         val registration = proposals
             .whereEqualTo(field, value)

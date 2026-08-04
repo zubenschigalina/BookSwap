@@ -9,7 +9,9 @@ import java.util.Date
  * inbox renders without extra reads.
  *
  * State machine (decision #3): PENDING → ACCEPTED (books lock to RESERVED, competing
- * pending proposals auto-expire) | REJECTED | EXPIRED.
+ * pending proposals auto-expire) | REJECTED | EXPIRED. An ACCEPTED proposal gains a
+ * `meetings/{proposalId}` document (Epic 8) and unlocks its chat thread (Epic 9); from
+ * there it can still go → CANCELLED, which re-opens every reserved book (Epic 10).
  *
  * Stored at Firestore path `proposals/{id}`.
  */
@@ -32,7 +34,10 @@ enum class ProposalStatus(val label: String) {
     PENDING("Pending"),
     ACCEPTED("Accepted"),
     REJECTED("Rejected"),
-    EXPIRED("Expired — book no longer available");
+    EXPIRED("Expired — book no longer available"),
+
+    /** Epic 10: the meeting was cancelled, so the exchange is off and books re-open. */
+    CANCELLED("Cancelled");
 
     companion object {
         fun labelOf(name: String): String =

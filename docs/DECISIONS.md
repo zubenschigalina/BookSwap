@@ -50,7 +50,7 @@ This project is built from two source documents (on the Desktop):
 - **Sprint 1** — Auth, Profile & City Audit  ← *built (2026-07-24); assembleDebug passes*
 - **Sprint 2** — Book Catalog & ISBN Lookup, Dual Swipe/Grid Discovery  ← *built (2026-07-24); assembleDebug passes*
 - **Sprint 3** — Filtering & Undo, Favorites Alerts, Proposal Engine & Queue  ← *built (2026-07-24); assembleDebug passes*
-- **Sprint 4** — Meeting Scheduling, In-App Messaging, Cancellation Logic
+- **Sprint 4** — Meeting Scheduling, In-App Messaging, Cancellation Logic  ← *built (2026-08-04); assembleDebug + unit tests pass; not yet exercised at runtime*
 - **Sprint 5** — Ownership Transfer, Reputation & Trust, Blocking, Admin Portal (separate web app)
 
 ## Sprint 2 implementation notes (2026-07-24)
@@ -101,17 +101,64 @@ This project is built from two source documents (on the Desktop):
 - **5-tab bottom nav** now: Discover, Favorites, Inbox, Library, Profile. Interested-user
   profile/library view is read-only (owner doesn't initiate under decision #2).
 
-## Known external setup required (blocks running, not building)
+## Sprint 4 implementation notes (2026-08-04)
 
-- A **Firebase project** + `app/google-services.json` (a placeholder is committed so the project compiles).
-- **Security rules + indexes are in the repo** (`firestore.rules`, `storage.rules`,
-  `firestore.indexes.json`, wired via `firebase.json`). Deploy with
-  `firebase deploy --only firestore,storage`. Two rules are deliberately permissive so the
-  client-side proposal-accept state machine works without a Cloud Function: any signed-in
-  user may flip *only* a book's or proposal's `status`. A Cloud Function would let us
-  tighten those. `books(ownerId, createdAt)` is the one composite index genuinely required
-  (My Library); the discovery index is defined explicitly but equality-only queries are
-  usually auto-served.
-- **Google Sign-In**: a Web client ID (from Firebase console) placed in `res/values/secrets.xml`.
+- **A reschedule is a separate pending offer, not an in-place edit.** The PRD looks
+  self-contradictory here: Epic 8 says editing a meeting sets it back to *Pending
+  Agreement*, while Epic 10 says the prior schedule stays active until the new time is
+  confirmed. Both hold only if the proposed change lives alongside the agreed one, so
+  `Meeting` carries active `dateTime`/`locationAddress` **plus**
+  `proposedDateTime`/`proposedLocationAddress`/`proposedById`. `confirm()` promotes
+  proposed → active only when both sides have agreed. The 2-hour cancellation window is
+  always measured against the **active** schedule.
+- **One meeting per proposal, keyed by the proposal id** (`meetings/{proposalId}`), same
+  deterministic-id trick as Sprint 3's favorites: `schedule()` can use `.set()` and is
+  idempotent, and the exchange screen reads the meeting without a query.
+- **The 2-hour rule is pure, injected-clock logic.** `MeetingRules.requiresEmergencyReason(
+  meetingTime, now)` takes `now` as a parameter so the PRD's "2-Hour Time Boundary Test" is
+  a plain JVM unit test (`MeetingRulesTest`, 8 cases incl. exactly-2h and already-passed).
+  The boundary is *strictly less than* 2 hours = emergency. The dialog decides which mode
+  to show when it opens, but `ExchangeDetailViewModel.cancel` **re-derives** it at tap
+  time, so a dialog left open across the boundary can't slip a reasonless cancel through.
+- **Cancelling releases the books.** One batch sets the meeting → CANCELLED, the proposal →
+  CANCELLED (a new `ProposalStatus`), and every book in the swap → AVAILABLE, which puts
+  them straight back into discovery. Same read-then-batch caveat as accept().
+- **Chat is a subcollection**, `proposals/{proposalId}/messages/{id}`. This is what lets
+  `firestore.rules` `get()` the parent proposal and enforce Epic 9's "unlocked ONLY after
+  acceptance" server-side rather than trusting the client; it also gives Epic 9's
+  "transcript permanently linked to the exchange record" for free. Reads stay allowed after
+  cancellation (history is readable), only `create` is gated on ACCEPTED.
+- **Location pins are labels, not map coordinates.** No Maps SDK yet (deferred), so a
+  location message carries the agreed meeting-place text and optional lat/lng, and "Open in
+  Maps" hands off via a `geo:` intent. `Message` already has the lat/lng fields so adding
+  the map later doesn't migrate data.
+- **Exchanges are a third Inbox tab.** Firestore can't OR across fields, so the tab merges
+  `observeIncoming` + `observeOutgoing` + `observeForUser(meetings)` client-side — no new
+  composite indexes.
+- **Deferred from Sprint 4:** the PRD's 24-hour and 2-hour meeting **reminders** need a
+  scheduled Cloud Function + FCM — the same server-side piece already deferred from
+  Sprint 3, and the only genuinely un-buildable part of these epics on-device. The PRD's
+  `SCHEDULED`/`COMPLETED` book states aren't modelled: RESERVED already covers the whole
+  scheduled window, and COMPLETED belongs to Sprint 5's ownership transfer.
+
+## Known external setup (status as of 2026-08-04)
+
+- **Firebase project `bookswap-c1c8f` is live** and `app/google-services.json` is the real
+  config (no longer a placeholder), including the type-1 Android OAuth client for the debug
+  keystore's SHA-1. To register another machine's debug cert:
+  `firebase apps:android:sha:create <appId> <sha1>` then delete and re-pull with
+  `firebase apps:sdkconfig ANDROID <appId> --out app/google-services.json`.
+- **Rules + indexes are deployed** (`firebase deploy --only firestore,storage`), so the
+  project is out of test mode. Cloud Storage needed its bucket created in the console once
+  before `--only storage` would deploy. ⚠️ Two rules stay deliberately permissive so the
+  client-side accept state machine works without a Cloud Function: any signed-in user may
+  flip *only* a book's or proposal's `status`, which means a malicious client could reserve
+  or expire someone else's books. Moving accept() into a Cloud Function closes this, and
+  pairs with the FCM function already deferred.
+- **Google Sign-In is configured but never verified end-to-end** — Play Services accepts the
+  OAuth config, but the emulator has no Google account, so the token exchange and
+  first-time user-doc creation in `AuthViewModel.signInWithGoogle` are untested. (There is
+  no `secrets.xml` step: `default_web_client_id` comes from google-services.json.)
 - **Firestore composite index** `books(ownerCity, status)` for discovery (see Sprint 2 notes).
-- Later sprints: Maps SDK key (location pins), FCM for favorite/proposal push (Sprint 3).
+- Still outstanding: **Maps SDK key** (real map pins, Sprint 4) and **FCM + Cloud
+  Functions** (favorite/proposal push from Sprint 3, meeting reminders from Sprint 4).

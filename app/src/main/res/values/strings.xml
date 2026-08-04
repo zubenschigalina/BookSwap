@@ -131,4 +131,68 @@
     <string name="propose_pick_hint">Pick 1–3 of your books to offer in exchange.</string>
     <string name="propose_no_books">You have no available books to offer. Add one to your library first.</string>
     <string name="propose_send">Send proposal (%1$d)</string>
+
+    <!-- Inbox: Exchanges tab (Epics 8–10) -->
+    <string name="inbox_exchanges">Exchanges</string>
+    <string name="inbox_no_exchanges">No active exchanges yet. Accepted proposals show up here.</string>
+    <string name="inbox_exchange_unscheduled">No meeting scheduled yet.</string>
+    <string name="inbox_open_exchange">Open exchange</string>
+
+    <!-- Exchange detail (Epic 8) -->
+    <string name="exchange_title">Exchange</string>
+    <string name="exchange_missing">This exchange is no longer available.</string>
+    <string name="exchange_with">Swap with %1$s</string>
+    <string name="exchange_requested">Requested: %1$s</string>
+    <string name="exchange_offered">In exchange for:</string>
+    <string name="exchange_cancelled_notice">This exchange was cancelled. Both books are available again.</string>
+    <string name="exchange_open_chat">Open chat</string>
+    <string name="exchange_chat_locked">Chat unlocks once the proposal is accepted.</string>
+
+    <!-- Meeting scheduling (Epics 8 &amp; 10) -->
+    <string name="meeting_heading">Meeting</string>
+    <string name="meeting_none_proposer">Suggest a date, time and place to meet.</string>
+    <string name="meeting_none_recipient">Waiting for %1$s to suggest a time and place.</string>
+    <string name="meeting_schedule_action">Schedule meeting</string>
+    <string name="meeting_schedule_title">Schedule meeting</string>
+    <string name="meeting_reschedule_title">Request a new time</string>
+    <string name="meeting_send_proposal">Send</string>
+    <string name="meeting_request_change">Request change</string>
+    <string name="meeting_pick_date">Date</string>
+    <string name="meeting_pick_time">Time</string>
+    <string name="meeting_done">Done</string>
+    <string name="meeting_location">Meeting place</string>
+    <string name="meeting_location_hint">e.g. Central Library café</string>
+    <string name="meeting_confirm">Confirm meeting</string>
+    <string name="meeting_awaiting_them">Waiting for %1$s to confirm.</string>
+    <string name="meeting_reschedule">Reschedule</string>
+    <string name="meeting_cancel">Cancel meeting</string>
+    <string name="meeting_countdown">Starts in %1$s. Cancelling less than 2 hours before requires a reason.</string>
+    <string name="meeting_change_yours">You proposed a change:</string>
+    <string name="meeting_change_theirs">They proposed a change:</string>
+    <string name="meeting_cancel_reason">Reason: %1$s</string>
+    <string name="meeting_was_emergency">Cancelled inside the 2-hour window.</string>
+
+    <!-- Cancellation (Epic 10) -->
+    <string name="cancel_title">Cancel this meeting?</string>
+    <string name="cancel_emergency_title">Emergency cancellation</string>
+    <string name="cancel_body">The exchange will be cancelled and both books become available again.</string>
+    <string name="cancel_emergency_body">The meeting starts in %1$s. A reason is required this close to the meeting.</string>
+    <string name="cancel_emergency_body_passed">The meeting time has passed. A reason is required to cancel.</string>
+    <string name="cancel_books_notice">Both books will be listed as available again.</string>
+    <string name="cancel_reason_required">Reason (required)</string>
+    <string name="cancel_reason_optional">Reason (optional)</string>
+    <string name="cancel_confirm">Cancel meeting</string>
+    <string name="cancel_emergency_confirm">Cancel anyway</string>
+    <string name="cancel_keep">Keep meeting</string>
+
+    <!-- Exchange chat (Epic 9) -->
+    <string name="chat_title">Chat</string>
+    <string name="chat_empty">No messages yet. Say hello and agree on the details.</string>
+    <string name="chat_locked">This chat is closed.</string>
+    <string name="chat_hint">Message</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_attach_image">Attach an image</string>
+    <string name="chat_share_location">Share the meeting place</string>
+    <string name="chat_location_pin">Meeting place</string>
+    <string name="chat_open_in_maps">Open in Maps</string>
 </resources>

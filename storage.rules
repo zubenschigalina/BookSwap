@@ -20,5 +20,13 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
+
+    // chat_images/{proposalId}/{messageId}.jpg — image attachments in an exchange chat
+    // (Epic 9). Same limitation as above: participation is enforced on the Firestore
+    // message document, which is the only thing that surfaces the URL.
+    match /chat_images/{proposalId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
   }
 }
